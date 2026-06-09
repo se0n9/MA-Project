@@ -17,10 +17,14 @@
 #include <zephyr/sys/byteorder.h>
 #include <zephyr/sys/printk.h>
 #include <zephyr/bluetooth/bluetooth.h>
+#include <zephyr/bluetooth/conn.h>
 #include <zephyr/bluetooth/hci.h>
+
+#include <bluetooth/services/nus.h>
 
 #include "app_config.h"
 #include "ble_window.h"
+#include "attendance.h"
 
 /* ---- iBeacon advertising data (broadcaster role) ----------------------- */
 
@@ -33,10 +37,25 @@ static const uint8_t ibeacon_mfg_data[] = {
 	APP_IBEACON_MEASURED_POWER,
 };
 
-static const struct bt_data ibeacon_ad[] = {
-	BT_DATA_BYTES(BT_DATA_FLAGS, BT_LE_AD_NO_BREDR),
+/*
+ * Advertising payload (Approach A): a single CONNECTABLE legacy set carrying the
+ * iBeacon manufacturer data in the AD, plus the NUS service UUID and device name
+ * in the scan response so the app can scan-filter by UUID (and fall back to the
+ * name). Flags advertise LE General Discoverable + BR/EDR-not-supported; iOS /
+ * Android ranging keys on the manufacturer payload, not the flags, so the
+ * iBeacon stays detectable.
+ */
+static const struct bt_data connectable_ad[] = {
+	BT_DATA_BYTES(BT_DATA_FLAGS, BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR),
 	BT_DATA(BT_DATA_MANUFACTURER_DATA, ibeacon_mfg_data,
 		sizeof(ibeacon_mfg_data)),
+};
+
+/* Scan response: 18 B (128-bit NUS UUID) + 13 B (name) = 31 B, the legacy max. */
+static const struct bt_data connectable_sd[] = {
+	BT_DATA_BYTES(BT_DATA_UUID128_ALL, BT_UUID_NUS_VAL),
+	BT_DATA(BT_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME,
+		sizeof(CONFIG_BT_DEVICE_NAME) - 1),
 };
 
 /* ---- Passive aggregation window (observer role) ------------------------ */
@@ -113,12 +132,49 @@ static void window_work_handler(struct k_work *work)
 
 /* ---- Bring-up ---------------------------------------------------------- */
 
-static int start_ibeacon_adv(void)
+static int start_connectable_adv(void)
 {
-	/* Non-connectable, non-scannable legacy advertising for iBeacon. */
-	return bt_le_adv_start(BT_LE_ADV_NCONN, ibeacon_ad,
-			       ARRAY_SIZE(ibeacon_ad), NULL, 0);
+	/*
+	 * Connectable legacy advertising carrying the iBeacon AD + NUS scan
+	 * response. Legacy connectable advertising auto-stops once a central
+	 * connects, so the disconnected callback restarts it (see below).
+	 */
+	return bt_le_adv_start(BT_LE_ADV_CONN, connectable_ad,
+			       ARRAY_SIZE(connectable_ad), connectable_sd,
+			       ARRAY_SIZE(connectable_sd));
 }
+
+/* ---- NUS connection lifecycle (peripheral role) ------------------------ */
+
+static void connected(struct bt_conn *conn, uint8_t err)
+{
+	ARG_UNUSED(conn);
+
+	if (err) {
+		printk("NUS connection failed (err %u)\n", err);
+		return;
+	}
+	printk("NUS connected\n");
+}
+
+static void disconnected(struct bt_conn *conn, uint8_t reason)
+{
+	ARG_UNUSED(conn);
+
+	printk("NUS disconnected (reason %u)\n", reason);
+
+	/* Approach A: re-advertise so the next attendance write can connect. */
+	int err = start_connectable_adv();
+
+	if (err) {
+		printk("connectable adv restart failed (err %d)\n", err);
+	}
+}
+
+BT_CONN_CB_DEFINE(conn_callbacks) = {
+	.connected = connected,
+	.disconnected = disconnected,
+};
 
 static int start_passive_scan(void)
 {
@@ -146,13 +202,19 @@ int main(void)
 	}
 	printk("COMPASS dual-mode firmware started (beacon=%s)\n", BEACON_ID);
 
-	err = start_ibeacon_adv();
+	err = attendance_init();
 	if (err) {
-		printk("iBeacon advertising failed (err %d)\n", err);
+		printk("NUS (attendance) init failed (err %d)\n", err);
 		return 0;
 	}
-	printk("iBeacon advertising: major=%d minor=%d\n", APP_IBEACON_MAJOR,
-	       APP_IBEACON_MINOR);
+
+	err = start_connectable_adv();
+	if (err) {
+		printk("connectable advertising failed (err %d)\n", err);
+		return 0;
+	}
+	printk("connectable iBeacon+NUS adv: major=%d minor=%d\n",
+	       APP_IBEACON_MAJOR, APP_IBEACON_MINOR);
 
 	err = start_passive_scan();
 	if (err) {

@@ -30,4 +30,9 @@
 /* Apple Bluetooth Company Identifier. */
 #define COMPANY_ID_APPLE 0x004C
 
+/* NUS attendance proximity gate (FR5): a CHECKIN is counted only if the
+ * connection RSSI of the tapping phone is at least this value (closer => higher
+ * / less negative). Close range is roughly -40..-65 dBm; tune on-site. */
+#define ATT_RSSI_THRESHOLD (-70)
+
 #endif /* APP_CONFIG_H_ */

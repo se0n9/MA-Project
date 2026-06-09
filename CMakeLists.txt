@@ -6,4 +6,5 @@ project(compass_beacon)
 target_sources(app PRIVATE
   src/main.c
   src/ble_window.c
+  src/attendance.c
 )
