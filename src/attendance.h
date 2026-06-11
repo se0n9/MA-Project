@@ -7,10 +7,9 @@
  *
  * The beacon owns the counter: each CHECKIN is gated on the connection RSSI
  * (proximity), and only accepted taps increment attendance_count, which is
- * printed to the UART console via attendance_display() and ACKed to the app
- * ("OK:<count>" on accept, "FAR" on reject). A later phase swaps the
- * attendance_display() placeholder for an LED-matrix render with no other
- * change. See firmware-nus-attendance-spec.md.
+ * echoed to the UART console and rendered on the LED matrix + battery bar via
+ * attendance_display(), and ACKed to the app ("OK:<count>" on accept, "FAR" on
+ * reject). See firmware-nus-attendance-spec.md.
  */
 
 #ifndef ATTENDANCE_H_
@@ -25,11 +24,10 @@
 int attendance_init(void);
 
 /*
- * Surfaces the current attendance count to the operator.
- *
- * Phase 1: prints "ATT-RX count=%u" to the UART console. This is the single
- * drop-in point for the future LED-matrix renderer - replace the body, leave
- * the signature and every call site unchanged.
+ * Surfaces the current attendance count to the operator: prints
+ * "ATT-RX count=%u" to the UART console (for the host bridge) and renders the
+ * count on the LED matrix + TM1651 battery bar (led_display_update()). Single
+ * drop-in point for any display change - the signature and call sites stay put.
  */
 void attendance_display(uint32_t count);
 

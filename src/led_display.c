@@ -204,7 +204,9 @@ void battery_display_set_count(uint32_t count, uint32_t capacity)
 
 void led_display_update(uint32_t count, uint32_t capacity)
 {
-    //led_matrix_set_count(count);
+    /* Matrix shows the count as a 2-digit number; battery bar shows the fill
+     * ratio against capacity. (led_matrix_set_count() lights one LED per head
+     * instead of drawing the number - kept in the API for bring-up.) */
     led_matrix_set_number(count);
     battery_display_set_count(count, capacity);
 }

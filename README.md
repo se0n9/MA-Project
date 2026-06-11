@@ -53,6 +53,13 @@ ATT-RX count=1
 NUS disconnected (reason 19)
 ```
 
+Each accepted tap is also **rendered on the LED display** wired to the unit:
+`attendance_display()` (`src/attendance.c`) calls `led_display_update(count,
+ATT_CAPACITY)` (`src/led_display.c`), which draws the count as a 2-digit number
+on the HT16K33 16x8 matrix and fills the TM1651 battery bar to
+`count / ATT_CAPACITY` percent. `ATT_CAPACITY` (room size, default 50) lives in
+`src/app_config.h`.
+
 The counter starts at 0 and resets on reboot (persistence is future work). The
 beacon advertises **connectable** (Approach A): advertising pauses for the ~1-2 s
 of a check-in connection and auto-restarts on disconnect, so other phones briefly
@@ -66,8 +73,9 @@ to accept.
 
 **Forward-compat:** the RX signal is matched by prefix, so a future
 `CHECKIN:<token>\n` (per-user de-duplication) is non-breaking.
-`attendance_display(uint32_t)` is the single drop-in point for the future
-LED-matrix renderer.
+`attendance_display(uint32_t)` is the single drop-in point for the display: it
+currently echoes the count to the console and drives the LED matrix + battery
+bar, so any future display swap touches only that one body.
 
 > Required Kconfig for the gate: `CONFIG_BT_CTLR_CONN_RSSI=y`. Without it the
 > SoftDevice Controller rejects HCI Read_RSSI and every tap fails the fail-safe
@@ -138,6 +146,8 @@ python tools/firestore_bridge.py --port /dev/tty.usbmodemXXXX --cred sa.json
 | `src/main.c` | BLE bring-up, connectable iBeacon adv, passive scan, 10 s window emit, NUS connection lifecycle |
 | `src/ble_window.c/.h` | Welford stats, FNV-1a bitmap, manufacturer split, JSON |
 | `src/attendance.c/.h` | NUS RX `CHECKIN` handler, RSSI proximity gate, attendance counter, `attendance_display()` |
-| `src/app_config.h` | Per-unit identity + thresholds (incl. `ATT_RSSI_THRESHOLD`) |
+| `src/led_display.c/.h` | HT16K33 matrix (count as a number) + TM1651 battery bar (fill ratio) renderer; `led_display_update()` |
+| `src/led_display_test.c` | Standalone display bring-up test (own `main()`, simulated counts) - not in the default build; see `CMakeLists.txt` |
+| `src/app_config.h` | Per-unit identity + thresholds (incl. `ATT_RSSI_THRESHOLD`, `ATT_CAPACITY`) |
 | `prj.conf` | Zephyr Kconfig (BT broadcaster+observer+peripheral/NUS, direct UART printk) |
 | `tools/firestore_bridge.py` | Host-side serial -> Firestore forwarder (also echoes `ATT-RX`/`NUS` lines) |

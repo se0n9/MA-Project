@@ -35,4 +35,9 @@
  * / less negative). Close range is roughly -40..-65 dBm; tune on-site. */
 #define ATT_RSSI_THRESHOLD (-70)
 
+/* Expected room capacity (total attendees). Full-scale for the LED display:
+ * the TM1651 battery bar fills to (count / ATT_CAPACITY) * 100%. The matrix
+ * shows the raw count, so this only drives the bar. */
+#define ATT_CAPACITY 50U
+
 #endif /* APP_CONFIG_H_ */

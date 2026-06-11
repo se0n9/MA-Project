@@ -1,5 +1,10 @@
 /*
- * Copyright (c) 2019 Henrik Brix Andersen <henrik@brixandersen.dk>
+ * COMPASS / Project HYBE - board overlay for the nRF52840DK.
+ *
+ * Declares the HT16K33 16x8 LED matrix on i2c0 (I2C address 0x70). led_display.c
+ * binds to this node via DT_COMPAT_GET_ANY_STATUS_OKAY(holtek_ht16k33) and draws
+ * the accumulated attendance count on it. The TM1651 battery bar is bit-banged
+ * straight on gpio1 (P1.12/P1.13) from led_display.c, so it needs no DT node.
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -10,49 +15,7 @@
 	ht16k33@70 {
 		compatible = "holtek,ht16k33";
 		reg = <0x70>;
-                /* Uncomment to use IRQ instead of polling: */
+		/* Uncomment to use IRQ instead of polling: */
 		/* irq-gpios = <&gpio1 8 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>; */
-		//status = "disabled";
-
-		keyscan {
-			compatible = "holtek,ht16k33-keyscan";
-		};
-	};
-};
-
-&led0 {
-	gpios = <&gpio0 13 GPIO_ACTIVE_LOW>;
-};
-
-/ {
-	aliases {
-		myserial = &uart1;
-	};
-};
-
-&uart1 {
-	status = "okay";
-	current-speed = <9600>;
-	pinctrl-0 = <&uart1_default2>;
-	pinctrl-1 = <&uart1_sleep2>;
-	pinctrl-names = "default", "sleep";
-};
-
-&pinctrl {
-	uart1_default2: uart1_default2 {
-		group1 {
-			psels = <NRF_PSEL(UART_RX, 1, 10)>;
-			bias-pull-up;
-		};
-		group2 {
-			psels = <NRF_PSEL(UART_TX, 1, 8)>;
-		};
-	};
-	uart1_sleep2: uart1_sleep2 {
-		group1 {
-			psels = <NRF_PSEL(UART_RX, 1, 10)>,
-			        <NRF_PSEL(UART_TX, 1, 8)>;
-			low-power-enable;
-		};
 	};
 };

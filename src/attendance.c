@@ -161,9 +161,11 @@ static struct bt_nus_cb nus_cb = {
 
 void attendance_display(uint32_t count)
 {
-	/* Phase 1 placeholder. Replace with the LED-matrix render later. */
+	/* Echo to the console for the host bridge, then render the accumulated
+	 * count on the LED matrix (number) + TM1651 battery bar (fill ratio
+	 * against room capacity). */
 	printk("ATT-RX count=%u\n", count);
-	led_display_update(count, 50U); //todo: total number of people needed(50 is hard coding value)
+	led_display_update(count, ATT_CAPACITY);
 }
 
 int attendance_init(void)
