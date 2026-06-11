@@ -27,6 +27,7 @@
 
 #include "app_config.h"
 #include "attendance.h"
+#include "led_display.h"
 
 /* The signal the app writes. Matched by prefix so a future "CHECKIN:<token>\n"
  * (per-user de-dup, spec 6) stays non-breaking. */
@@ -162,10 +163,12 @@ void attendance_display(uint32_t count)
 {
 	/* Phase 1 placeholder. Replace with the LED-matrix render later. */
 	printk("ATT-RX count=%u\n", count);
+	led_display_update(count, 50U); //todo: total number of people needed(50 is hard coding value)
 }
 
 int attendance_init(void)
 {
 	k_work_init(&checkin_work, checkin_work_handler);
+	led_display_init();
 	return bt_nus_init(&nus_cb);
 }
